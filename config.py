@@ -31,7 +31,7 @@ NAME_SUBSTITUTE = r""  # Replace/remove words: "source1/target1|source2/target2"
 FFMPEG_CMDS = {}  # Predefined FFmpeg commands, e.g., {"preset_name": ["-vf", "scale=1280:-1"]}
 UPLOAD_PATHS = {}  # Named upload paths, e.g., {"movies": "remote:movies/", "tv": "gdrive_id_tv_folder"}
 
-# Aeon-MLTB Specific Features / Customizations
+# hemanth Specific Features / Customizations
 DELETE_LINKS = False  # Auto-delete links after a certain period or action
 FSUB_IDS = ""  # Forced subscription channel IDs (comma-separated)
 TOKEN_TIMEOUT = 0  # Timeout in seconds for user tokens (0 for no timeout)
@@ -85,7 +85,7 @@ USENET_SERVERS = [  # List of Usenet server configurations
 
 # Update
 UPSTREAM_REPO = (
-    "https://github.com/AeonOrg/Aeon-MLTB"  # Upstream repository for updates
+    "https://github.com/hemanthbreakerd/LEECHNEW"  # Upstream repository for updates
 )
 UPSTREAM_BRANCH = "main"  # Default branch for updates
 

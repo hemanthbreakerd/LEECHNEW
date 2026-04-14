@@ -32,7 +32,7 @@ jobs:
       - name: Commit and push changes
         id: commit
         run: |
-          git config --global user.name "5hojib"
+          git config --global user.name "hemanth"
           git config --global user.email "yesiamshojib@gmail.com"
 
           if git diff-index --quiet HEAD --; then

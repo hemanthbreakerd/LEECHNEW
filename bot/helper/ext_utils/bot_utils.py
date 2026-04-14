@@ -24,7 +24,7 @@ from .telegraph_helper import telegraph
 
 COMMAND_USAGE = {}
 
-THREAD_POOL = ThreadPoolExecutor(max_workers=500)
+THREAD_POOL = ThreadPoolExecutor(max_workers=1000)
 
 
 class SetInterval:
@@ -119,7 +119,7 @@ async def get_telegraph_list(telegraph_content):
     path = [
         (
             await telegraph.create_page(
-                title="Aeon-MLTB Drive Search",
+                title="hemanth Drive Search",
                 content=content,
             )
         )["path"]

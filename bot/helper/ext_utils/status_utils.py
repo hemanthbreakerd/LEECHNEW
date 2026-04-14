@@ -171,10 +171,10 @@ def get_progress_bar_string(pct):
     if isinstance(pct, str):
         pct = float(pct.strip("%"))
     p = min(max(pct, 0), 100)
-    c_full = int((p + 5) // 10)
-    p_str = "●" * c_full
-    p_str += "○" * (10 - c_full)
-    return p_str
+    c_full = int(p // 10)
+    p_str = "🟥" * c_full
+    p_str += "🟦" * (10 - c_full)
+    return f"[{p_str}]"
 
 
 def source(self):
@@ -212,47 +212,51 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
             tstatus = await task.status()
         else:
             tstatus = task.status()
-        if task.listener.is_super_chat:
-            msg += f"<b>{index + start_position}. <a href='{task.listener.message.link}'>{tstatus}</a>: </b>"
+
+        if tstatus == MirrorStatus.STATUS_DOWNLOAD:
+            mode = "🚀 Downloading"
+        elif tstatus == MirrorStatus.STATUS_UPLOAD:
+            mode = "📤 Uploading"
         else:
-            msg += f"<b>{index + start_position}. {tstatus}: </b>"
-        msg += f"<code>{escape(f'{task.name()}')}</code>"
+            mode = f"⚙️ {tstatus}"
+
+        if task.listener.is_super_chat:
+            msg += f"<b>{index + start_position}. <a href='{task.listener.message.link}'>{mode}</a></b>"
+        else:
+            msg += f"<b>{index + start_position}. {mode}</b>"
+
+        msg += f"\n<code>{escape(f'{task.name()}')}</code>"
         if task.listener.subname:
             msg += f"\n<i>{task.listener.subname}</i>"
-        msg += f"\nby: {source(task.listener)}"
+
         if (
             tstatus not in [MirrorStatus.STATUS_SEED, MirrorStatus.STATUS_QUEUEUP]
             and task.listener.progress
         ):
             progress = task.progress()
             msg += f"\n{get_progress_bar_string(progress)} {progress}"
+            msg += f"\n⚡ <b>Speed:</b> {task.speed()} | ⏳ <b>ETA:</b> {task.eta()}"
+            msg += f"\n💎 <b>Total Size:</b> {task.size()}"
             if task.listener.subname:
                 subsize = f"/{get_readable_file_size(task.listener.subsize)}"
-                ac = len(task.listener.files_to_proceed)
-                count = f"{task.listener.proceed_count}/{ac or '?'}"
+                msg += f"\n✅ <b>Processed:</b> {task.processed_bytes()}{subsize}"
             else:
-                subsize = ""
-                count = ""
-            msg += f"\n<b>Processed:</b> {task.processed_bytes()}{subsize}"
-            if count:
-                msg += f"\n<b>Count:</b> {count}"
-            msg += f"\n<b>Size:</b> {task.size()}"
-            msg += f"\n<b>Speed:</b> {task.speed()}"
-            msg += f"\n<b>Estimated:</b> {task.eta()}"
+                msg += f"\n✅ <b>Processed:</b> {task.processed_bytes()}"
+
             if (
                 tstatus == MirrorStatus.STATUS_DOWNLOAD and task.listener.is_torrent
             ) or task.listener.is_qbit:
                 with contextlib.suppress(Exception):
-                    msg += f"\n<b>Seeders:</b> {task.seeders_num()} | <b>Leechers:</b> {task.leechers_num()}"
+                    msg += f"\nS: {task.seeders_num()} | L: {task.leechers_num()}"
         elif tstatus == MirrorStatus.STATUS_SEED:
-            msg += f"\n<b>Size: </b>{task.size()}"
-            msg += f"\n<b>Speed: </b>{task.seed_speed()}"
-            msg += f"\n<b>Uploaded: </b>{task.uploaded_bytes()}"
-            msg += f"\n<b>Ratio: </b>{task.ratio()}"
-            msg += f" | <b>Time: </b>{task.seeding_time()}"
+            msg += f"\n💎 <b>Size: </b>{task.size()}"
+            msg += f"\n⚡ <b>Speed: </b>{task.seed_speed()}"
+            msg += f"\n✅ <b>Uploaded: </b>{task.uploaded_bytes()}"
+            msg += f"\n<b>Ratio: </b>{task.ratio()} | ⏳ <b>Time: </b>{task.seeding_time()}"
         else:
-            msg += f"\n<b>Size: </b>{task.size()}"
-        msg += f"\n<b>Tool:</b> {task.tool}"
+            msg += f"\n💎 <b>Size: </b>{task.size()}"
+
+        msg += f"\n👤 <b>By:</b> {source(task.listener)} | 🛠️ <b>Tool:</b> {task.tool}"
         task_gid = task.gid()
         short_gid = task_gid[-8:] if task_gid.startswith("SABnzbd") else task_gid[:8]
         msg += f"\n/stop_{short_gid}\n\n"

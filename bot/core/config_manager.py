@@ -67,7 +67,7 @@ class Config:
     WEB_PINCODE: bool = False
     YT_DLP_OPTIONS: ClassVar[dict[str, Any]] = {}
 
-    # Aeon-MLTB Specific / Custom Features
+    # hemanth Specific / Custom Features
     METADATA_KEY: str = ""
     WATERMARK_KEY: str = ""
     SET_COMMANDS: bool = True

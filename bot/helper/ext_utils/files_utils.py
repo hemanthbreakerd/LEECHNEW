@@ -5,7 +5,9 @@ from os import readlink, walk
 from re import IGNORECASE, escape
 from re import search as re_search
 from re import split as re_split
+from re import split as natsplit
 
+from aiofiles import open as aiopen
 from aiofiles.os import (
     listdir,
     remove,
@@ -21,7 +23,7 @@ from aiofiles.os import (
 from aiofiles.os import (
     readlink as aioreadlink,
 )
-from aioshutil import rmtree as aiormtree
+from aioshutil import move, rmtree as aiormtree
 from magic import Magic
 
 from bot import DOWNLOAD_DIR, LOGGER
@@ -117,6 +119,55 @@ def is_archive(file: str) -> bool:
 def is_archive_split(file: str) -> bool:
     """Checks if the filename matches the pattern for a part of a split archive."""
     return bool(re_search(SPLIT_REGEX, file.lower(), IGNORECASE))
+
+
+def natural_sort_key(s):
+    return [
+        int(text) if text.isdigit() else text.lower()
+        for text in natsplit(r"(\d+)", s)
+    ]
+
+
+async def sequential_merge(path, listener):
+    files = await listdir(path)
+    video_files = []
+    for file in files:
+        if file.lower().endswith(
+            (".mp4", ".mkv", ".mov", ".avi", ".wmv", ".flv", ".webm"),
+        ):
+            video_files.append(file)
+    if len(video_files) < 2:
+        return
+    video_files.sort(key=natural_sort_key)
+    list_file = ospath.join(path, "concat.txt")
+    async with aiopen(list_file, "w") as f:
+        for file in video_files:
+            await f.write(f"file '{file}'\n")
+
+    output_file = ospath.join(path, f"{video_files[0]}_merged.mkv")
+    cmd = [
+        "xtra",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        list_file,
+        "-c",
+        "copy",
+        output_file,
+    ]
+    _, stderr, code = await cmd_exec(cmd)
+    if code != 0:
+        LOGGER.error(f"FFmpeg Sequential Merge Failed: {stderr}")
+        if await aiopath.exists(list_file):
+            await remove(list_file)
+        return
+
+    await remove(list_file)
+    for file in video_files:
+        await remove(ospath.join(path, file))
+    await move(output_file, ospath.join(path, video_files[0]))
 
 
 async def clean_target(path: str):

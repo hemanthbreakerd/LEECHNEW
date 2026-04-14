@@ -247,7 +247,7 @@ GoFile Folder ID is <code>{gofile_folder}</code>"""
             f"userset {user_id} menu YT_DEFAULT_DESCRIPTION",
         )
         yt_description = user_dict.get(
-            "YT_DEFAULT_DESCRIPTION", "Uploaded by Aeon-MLTB."
+            "YT_DEFAULT_DESCRIPTION", "Uploaded by hemanth."
         )
 
         buttons.data_button(
@@ -399,6 +399,14 @@ Add to Playlist ID: <code>{yt_add_to_playlist_id}</code>"""
             mdt = Config.METADATA_KEY
         else:
             mdt = "None"
+
+        if user_dict.get("is_merge_enabled", False):
+            merge_msg = "✅ Enabled"
+            buttons.data_button("Merge: ✅ Enabled", f"userset {user_id} tog is_merge_enabled f")
+        else:
+            merge_msg = "❌ Disabled"
+            buttons.data_button("Merge: ❌ Disabled", f"userset {user_id} tog is_merge_enabled t")
+
         if user_dict:
             buttons.data_button("Reset All", f"userset {user_id} reset all")
 
@@ -416,7 +424,8 @@ Included Extensions is <code>{inc_ex}</code>
 YT-DLP Options is <code>{ytopt}</code>
 FFMPEG Commands is <code>{ffc}</code>
 Metadata is <code>{mdt}</code>
-Watermark text is <code>{wmt}</code>"""
+Watermark text is <code>{wmt}</code>
+Sequential Merge is <b>{merge_msg}</b>"""
 
     return text, buttons.build_menu(2), thumbnail
 
@@ -716,6 +725,8 @@ async def edit_user_settings(client, query):
         if data[3] == "STOP_DUPLICATE":
             back_to = "gdrive"
         elif data[3] == "USER_TOKENS":
+            back_to = "main"
+        elif data[3] == "is_merge_enabled":
             back_to = "main"
         else:
             back_to = "leech"

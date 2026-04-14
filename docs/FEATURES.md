@@ -156,4 +156,4 @@ You can configure default settings for your YouTube uploads. Access these via th
     *   Example: `tag1, my awesome tag, another tag`
     *   Default: `None` (no tags added by default beyond potentially bot-specific ones)
 *   **Default Description**: Set your default YouTube video description. The original filename will often be appended.
-    *   Default: `Uploaded by Aeon-MLTB.`
+    *   Default: `Uploaded by hemanth.`
