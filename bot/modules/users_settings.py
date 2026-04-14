@@ -402,10 +402,14 @@ Add to Playlist ID: <code>{yt_add_to_playlist_id}</code>"""
 
         if user_dict.get("is_merge_enabled", False):
             merge_msg = "✅ Enabled"
-            buttons.data_button("Merge: ✅ Enabled", f"userset {user_id} tog is_merge_enabled f")
+            buttons.data_button(
+                "Merge: ✅ Enabled", f"userset {user_id} tog is_merge_enabled f"
+            )
         else:
             merge_msg = "❌ Disabled"
-            buttons.data_button("Merge: ❌ Disabled", f"userset {user_id} tog is_merge_enabled t")
+            buttons.data_button(
+                "Merge: ❌ Disabled", f"userset {user_id} tog is_merge_enabled t"
+            )
 
         if user_dict:
             buttons.data_button("Reset All", f"userset {user_id} reset all")
@@ -724,9 +728,7 @@ async def edit_user_settings(client, query):
         update_user_ldata(user_id, data[3], data[4] == "t")
         if data[3] == "STOP_DUPLICATE":
             back_to = "gdrive"
-        elif data[3] == "USER_TOKENS":
-            back_to = "main"
-        elif data[3] == "is_merge_enabled":
+        elif data[3] == "USER_TOKENS" or data[3] == "is_merge_enabled":
             back_to = "main"
         else:
             back_to = "leech"

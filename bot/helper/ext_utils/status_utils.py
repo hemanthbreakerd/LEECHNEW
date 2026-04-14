@@ -256,7 +256,9 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
         else:
             msg += f"\n💎 <b>Size: </b>{task.size()}"
 
-        msg += f"\n👤 <b>By:</b> {source(task.listener)} | 🛠️ <b>Tool:</b> {task.tool}"
+        msg += (
+            f"\n👤 <b>By:</b> {source(task.listener)} | 🛠️ <b>Tool:</b> {task.tool}"
+        )
         task_gid = task.gid()
         short_gid = task_gid[-8:] if task_gid.startswith("SABnzbd") else task_gid[:8]
         msg += f"\n/stop_{short_gid}\n\n"

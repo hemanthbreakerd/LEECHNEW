@@ -4,8 +4,8 @@ from os import path as ospath
 from os import readlink, walk
 from re import IGNORECASE, escape
 from re import search as re_search
-from re import split as re_split
 from re import split as natsplit
+from re import split as re_split
 
 from aiofiles import open as aiopen
 from aiofiles.os import (
@@ -23,7 +23,8 @@ from aiofiles.os import (
 from aiofiles.os import (
     readlink as aioreadlink,
 )
-from aioshutil import move, rmtree as aiormtree
+from aioshutil import move
+from aioshutil import rmtree as aiormtree
 from magic import Magic
 
 from bot import DOWNLOAD_DIR, LOGGER
