@@ -41,10 +41,10 @@ from .ext_utils.files_utils import (
     SevenZ,
     get_base_name,
     get_path_size,
+    natural_sort_key,
     is_archive,
     is_archive_split,
     is_first_archive_split,
-    natural_sort_key,
     split_file,
 )
 from .ext_utils.links_utils import (
@@ -1650,23 +1650,13 @@ class TaskConfig:
                 for root, _, files in await sync_to_async(walk, dl_path):
                     for file in files:
                         if file.lower().endswith(
-                            (
-                                ".mp4",
-                                ".mkv",
-                                ".mov",
-                                ".avi",
-                                ".wmv",
-                                ".flv",
-                                ".webm",
-                            ),
+                            (".mp4", ".mkv", ".mov", ".avi", ".wmv", ".flv", ".webm"),
                         ):
                             video_files.append(ospath.join(root, file))
 
             if video_files:
                 async with task_dict_lock:
-                    task_dict[self.mid] = FFmpegStatus(
-                        self, ffmpeg, gid, "AudioSplit"
-                    )
+                    task_dict[self.mid] = FFmpegStatus(self, ffmpeg, gid, "AudioSplit")
                 self.progress = False
                 async with cpu_eater_lock:
                     self.progress = True

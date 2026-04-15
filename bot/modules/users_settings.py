@@ -408,8 +408,7 @@ Add to Playlist ID: <code>{yt_add_to_playlist_id}</code>"""
         else:
             merge_msg = "❌ Disabled"
             buttons.data_button(
-                "Auto Merge: ❌ Disabled",
-                f"userset {user_id} tog is_merge_enabled t",
+                "Auto Merge: ❌ Disabled", f"userset {user_id} tog is_merge_enabled t"
             )
 
         if user_dict.get("is_asplit_enabled", False):

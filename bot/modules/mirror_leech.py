@@ -41,9 +41,11 @@ from bot.helper.mirror_leech_utils.download_utils.rclone_download import (
 from bot.helper.mirror_leech_utils.download_utils.telegram_download import (
     TelegramDownloadHelper,
 )
+from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.telegram_helper.message_utils import (
     auto_delete_message,
     delete_links,
+    edit_message,
     get_tg_link_message,
     send_message,
 )
@@ -99,6 +101,7 @@ class Mirror(TaskListener):
             "-z": False,
             "-sv": False,
             "-vt": False,
+            "-vtp": False,
             "-as": False,
             "-audiosplit": False,
             "-to": "",
@@ -145,7 +148,7 @@ class Mirror(TaskListener):
         self.split_size = args["-sp"]
         self.sample_video = args["-sv"]
         self.screen_shots = args["-ss"]
-        self.vtools = args["-vt"]
+        self.vtools = args["-vt"] or args["-vtp"]
         self.audio_split = args["-as"] or args["-audiosplit"]
         self.trim_to = args["-to"]
         self.force_run = args["-f"]
@@ -270,6 +273,27 @@ class Mirror(TaskListener):
         await self.run_multi(input_list, Mirror)
 
         await self.get_tag(text)
+
+        if (
+            args["-vt"]
+            and not any([self.audio_split, self.trim_to, self.folder_name])
+            and not (
+                self.screen_shots
+                and isinstance(self.screen_shots, str)
+                and ":" in self.screen_shots
+            )
+        ):
+            buttons = ButtonMaker()
+            buttons.data_button("Video + Video", f"vt {user_id} merge")
+            buttons.data_button("Trim", f"vt {user_id} trim")
+            buttons.data_button("Remove Stream", f"vt {user_id} remove")
+            buttons.data_button("Close", f"vt {user_id} close")
+            await send_message(
+                self.message,
+                "Select the tool you want to use:",
+                buttons.build_menu(2),
+            )
+            return await delete_links(self.message)
 
         path = f"{DOWNLOAD_DIR}{self.mid}{self.folder_name}"
 
@@ -493,3 +517,32 @@ async def nzb_leech(client, message):
     bot_loop.create_task(
         Mirror(client, message, is_leech=True, is_nzb=True).new_event(),
     )
+
+
+@new_task
+async def vt_callback(client, query):
+    message = query.message
+    user_id = query.from_user.id
+    data = query.data.split()
+    if user_id != int(data[1]):
+        return await query.answer(text="Not Yours!", show_alert=True)
+    if data[2] == "close":
+        await query.answer()
+        return await delete_message(message)
+
+    await query.answer()
+    reply_to = message.reply_to_message
+    text = reply_to.text.split("\n")[0]
+    if data[2] == "merge":
+        text += " -m merge -vtp"
+    elif data[2] == "trim":
+        text += " -ss 00:00:00 -to 00:00:00 -vtp"
+    elif data[2] == "remove":
+        text += " -vtp"
+
+    await delete_message(message)
+    reply_to.text = text
+    if "leech" in text or " /l " in text:
+        await leech(client, reply_to)
+    else:
+        await mirror(client, reply_to)

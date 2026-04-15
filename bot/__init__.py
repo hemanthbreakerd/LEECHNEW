@@ -1,8 +1,4 @@
 # ruff: noqa: E402
-from uvloop import install
-
-install()
-
 import os
 import subprocess
 from asyncio import Lock, new_event_loop, set_event_loop
@@ -23,6 +19,8 @@ from time import time
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pytz import timezone
 from uvloop import install
+
+install()
 
 from sabnzbdapi import SabnzbdClient
 

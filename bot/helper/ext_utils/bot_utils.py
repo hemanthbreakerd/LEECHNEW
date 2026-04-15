@@ -159,6 +159,7 @@ def arg_parser(items, arg_base):
         "-sv",
         "-ss",
         "-vt",
+        "-vtp",
         "-as",
         "-audiosplit",
         "-f",
@@ -190,6 +191,7 @@ def arg_parser(items, arg_base):
                 "-ut",
                 "-bt",
                 "-vt",
+                "-vtp",
                 "-as",
                 "-audiosplit",
             ]:
