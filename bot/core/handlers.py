@@ -245,6 +245,7 @@ def add_handlers():
         "^status": status_pages,
         "^botrestart": confirm_restart,
         "^aeon": aeon_callback,
+        "^vt": vt_callback,
     }
 
     for regex_filter, handler_func in regex_filters.items():

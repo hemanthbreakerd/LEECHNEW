@@ -41,9 +41,11 @@ from bot.helper.mirror_leech_utils.download_utils.rclone_download import (
 from bot.helper.mirror_leech_utils.download_utils.telegram_download import (
     TelegramDownloadHelper,
 )
+from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.telegram_helper.message_utils import (
     auto_delete_message,
     delete_links,
+    delete_message,
     get_tg_link_message,
     send_message,
 )
@@ -80,7 +82,7 @@ class Mirror(TaskListener):
         self.is_nzb = is_nzb
 
     async def new_event(self):
-        text = self.message.text.split("\n")
+        text = (self.message.text or self.message.caption or "").split("\n")
         input_list = text[0].split(" ")
         error_msg, error_button = await error_check(self.message)
         if error_msg:
@@ -98,7 +100,12 @@ class Mirror(TaskListener):
             "-e": False,
             "-z": False,
             "-sv": False,
-            "-ss": False,
+            "-vt": False,
+            "-vtp": False,
+            "-as": False,
+            "-audiosplit": False,
+            "-to": "",
+            "-ss": "",
             "-f": False,
             "-fd": False,
             "-fu": False,
@@ -141,6 +148,9 @@ class Mirror(TaskListener):
         self.split_size = args["-sp"]
         self.sample_video = args["-sv"]
         self.screen_shots = args["-ss"]
+        self.vtools = args["-vt"] or args["-vtp"]
+        self.audio_split = args["-as"] or args["-audiosplit"]
+        self.trim_to = args["-to"]
         self.force_run = args["-f"]
         self.force_download = args["-fd"]
         self.force_upload = args["-fu"]
@@ -264,14 +274,35 @@ class Mirror(TaskListener):
 
         await self.get_tag(text)
 
+        if (
+            args["-vt"]
+            and not any([self.audio_split, self.trim_to, self.folder_name])
+            and not (
+                self.screen_shots
+                and isinstance(self.screen_shots, str)
+                and ":" in self.screen_shots
+            )
+        ):
+            buttons = ButtonMaker()
+            buttons.data_button("Video + Video", f"vt {user_id} merge")
+            buttons.data_button("Trim", f"vt {user_id} trim")
+            buttons.data_button("Remove Stream", f"vt {user_id} remove")
+            buttons.data_button("Close", f"vt {user_id} close")
+            await send_message(
+                self.message,
+                "Select the tool you want to use:",
+                buttons.build_menu(2),
+            )
+            return await delete_links(self.message)
+
         path = f"{DOWNLOAD_DIR}{self.mid}{self.folder_name}"
 
         if (
             not self.link
             and (reply_to := self.message.reply_to_message)
-            and reply_to.text
+            and (reply_to.text or reply_to.caption)
         ):
-            self.link = reply_to.text.split("\n", 1)[0].strip()
+            self.link = (reply_to.text or reply_to.caption).split("\n", 1)[0].strip()
         if is_telegram_link(self.link):
             try:
                 reply_to, session = await get_tg_link_message(self.link, user_id)
@@ -323,7 +354,7 @@ class Mirror(TaskListener):
             )
 
             if file_ is None:
-                if reply_text := reply_to.text:
+                if reply_text := (reply_to.text or reply_to.caption):
                     self.link = reply_text.split("\n", 1)[0].strip()
                 else:
                     reply_to = None
@@ -486,3 +517,43 @@ async def nzb_leech(client, message):
     bot_loop.create_task(
         Mirror(client, message, is_leech=True, is_nzb=True).new_event(),
     )
+
+
+@new_task
+async def vt_callback(client, query):
+    message = query.message
+    user_id = query.from_user.id
+    data = query.data.split()
+    if user_id != int(data[1]):
+        return await query.answer(text="Not Yours!", show_alert=True)
+    if data[2] == "close":
+        await query.answer()
+        return await delete_message(message)
+
+    await query.answer()
+    cmd_message = message.reply_to_message
+    if not cmd_message:
+        return await delete_message(message)
+
+    text = (cmd_message.text or cmd_message.caption or "").split("\n")[0]
+    if not text:
+        return await delete_message(message)
+
+    if data[2] == "merge":
+        text += " -m merge -vtp"
+    elif data[2] == "trim":
+        text += " -ss 00:00:00 -to 00:00:00 -vtp"
+    elif data[2] == "remove":
+        text += " -vtp"
+
+    await delete_message(message)
+    if cmd_message.text:
+        cmd_message.text = text
+    else:
+        cmd_message.caption = text
+
+    if "leech" in text or " /l " in text:
+        await leech(client, cmd_message)
+    else:
+        await mirror(client, cmd_message)
+    return None

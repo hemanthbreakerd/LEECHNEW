@@ -44,6 +44,7 @@ from .ext_utils.files_utils import (
     is_archive,
     is_archive_split,
     is_first_archive_split,
+    natural_sort_key,
     split_file,
 )
 from .ext_utils.links_utils import (
@@ -121,7 +122,10 @@ class TaskConfig:
         self.sample_video = False
         self.convert_audio = False
         self.convert_video = False
-        self.screen_shots = False
+        self.screen_shots = ""
+        self.vtools = False
+        self.trim_to = ""
+        self.audio_split = False
         self.is_cancelled = False
         self.force_run = False
         self.force_download = False
@@ -1137,7 +1141,13 @@ class TaskConfig:
 
     async def generate_screenshots(self, dl_path):
         """Generates screenshots for video files."""
-        ss_nb = int(self.screen_shots) if isinstance(self.screen_shots, str) else 10
+        if self.vtools:
+            return dl_path
+        ss_nb = (
+            int(self.screen_shots)
+            if isinstance(self.screen_shots, str) and self.screen_shots.isdigit()
+            else 10
+        )
         if self.is_file:
             if (await get_document_type(dl_path))[0]:
                 LOGGER.info(f"Creating Screenshot for: {dl_path}")
@@ -1546,6 +1556,128 @@ class TaskConfig:
                                 os.remove(temp_file)
         if checked:
             cpu_eater_lock.release()
+        return dl_path
+
+    async def proceed_video_tools(self, dl_path, gid):
+        ffmpeg = FFMpeg(self)
+        is_merge = self.user_dict.get("is_merge_enabled", False) and not self.is_file
+        if self.vtools or is_merge:
+            video_files = []
+            if self.is_file:
+                if dl_path.lower().endswith(
+                    (".mp4", ".mkv", ".mov", ".avi", ".wmv", ".flv", ".webm"),
+                ):
+                    video_files.append(dl_path)
+            else:
+                for file in await listdir(dl_path):
+                    if file.lower().endswith(
+                        (".mp4", ".mkv", ".mov", ".avi", ".wmv", ".flv", ".webm"),
+                    ):
+                        video_files.append(ospath.join(dl_path, file))
+                video_files.sort(key=natural_sort_key)
+
+            if video_files:
+                is_multi = bool(self.folder_name) and not self.is_file
+                is_trim = bool(
+                    self.vtools and (self.screen_shots or self.trim_to),
+                )
+
+                if is_multi and not is_trim and len(video_files) > 1:
+                    if self.name and not self.vtools:
+                        LOGGER.warning("DO NOT use -n in merge mode")
+                    async with task_dict_lock:
+                        task_dict[self.mid] = FFmpegStatus(
+                            self,
+                            ffmpeg,
+                            gid,
+                            "VideoTool",
+                        )
+                    self.progress = False
+                    async with cpu_eater_lock:
+                        self.progress = True
+                        v_names = [ospath.basename(f) for f in video_files]
+                        output_name = f"{v_names[0]}_merged.mkv"
+                        output_path = ospath.join(dl_path, output_name)
+                        res = await ffmpeg.merge_videos(
+                            dl_path,
+                            v_names,
+                            output_path,
+                        )
+                        if res:
+                            for file in video_files:
+                                await remove(file)
+                            new_path = ospath.join(dl_path, v_names[0])
+                            await move(res, new_path)
+                            return dl_path
+                elif self.vtools:
+                    if not is_multi:
+                        video_files = video_files[:1]
+
+                    async with task_dict_lock:
+                        task_dict[self.mid] = FFmpegStatus(
+                            self,
+                            ffmpeg,
+                            gid,
+                            "VideoTool",
+                        )
+                    self.progress = False
+                    async with cpu_eater_lock:
+                        self.progress = True
+                        new_files = []
+                        for video in video_files:
+                            if is_trim:
+                                res = await ffmpeg.trim_video(
+                                    video,
+                                    self.screen_shots or "00:00:00",
+                                    self.trim_to or "00:00:00",
+                                )
+                            else:
+                                res = await ffmpeg.extract_audio(video)
+                            if res:
+                                await remove(video)
+                                new_files.append(res)
+                        if self.is_file and new_files:
+                            return new_files[0]
+
+        if self.audio_split or self.user_dict.get("is_asplit_enabled", False):
+            video_files = []
+            if self.is_file:
+                if dl_path.lower().endswith(
+                    (".mp4", ".mkv", ".mov", ".avi", ".wmv", ".flv", ".webm"),
+                ):
+                    video_files.append(dl_path)
+            else:
+                for root, _, files in await sync_to_async(walk, dl_path):
+                    for file in files:
+                        if file.lower().endswith(
+                            (
+                                ".mp4",
+                                ".mkv",
+                                ".mov",
+                                ".avi",
+                                ".wmv",
+                                ".flv",
+                                ".webm",
+                            ),
+                        ):
+                            video_files.append(ospath.join(root, file))
+
+            if video_files:
+                async with task_dict_lock:
+                    task_dict[self.mid] = FFmpegStatus(
+                        self, ffmpeg, gid, "AudioSplit"
+                    )
+                self.progress = False
+                async with cpu_eater_lock:
+                    self.progress = True
+                    for video in video_files:
+                        res = await ffmpeg.audio_split(video)
+                        if res:
+                            await remove(video)
+                            if self.is_file and len(res) == 1:
+                                return res[0]
+            return dl_path
+
         return dl_path
 
     async def proceed_embed_thumb(self, dl_path, gid):

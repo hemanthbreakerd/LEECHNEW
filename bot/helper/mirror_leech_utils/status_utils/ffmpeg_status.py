@@ -50,6 +50,10 @@ class FFmpegStatus:
             return MirrorStatus.STATUS_WATERMARK
         if self._cstatus == "E_thumb":
             return MirrorStatus.STATUS_ETHUMB
+        if self._cstatus == "VideoTool":
+            return MirrorStatus.STATUS_VTOOLS
+        if self._cstatus == "AudioSplit":
+            return MirrorStatus.STATUS_ASPLIT
         return MirrorStatus.STATUS_FFMPEG
 
     def task(self):

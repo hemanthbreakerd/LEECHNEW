@@ -116,19 +116,19 @@ UPSTREAM_BRANCH = (
 )
 
 if UPSTREAM_REPO:
-    if path.exists(".git"):
-        srun(["rm", "-rf", ".git"], check=False)
+    if not path.exists(".git"):
+        srun(["git", "init", "-q"], check=False)
+        srun(
+            ["git", "config", "--global", "user.email", "e.anastayyar@gmail.com"],
+            check=False,
+        )
+        srun(["git", "config", "--global", "user.name", "mltb"], check=False)
+        srun(["git", "remote", "add", "origin", UPSTREAM_REPO], check=False)
 
     update = srun(
         [
-            f"git init -q \
-                     && git config --global user.email e.anastayyar@gmail.com \
-                     && git config --global user.name mltb \
-                     && git add . \
-                     && git commit -sm update -q \
-                     && git remote add origin {UPSTREAM_REPO} \
-                     && git fetch origin -q \
-                     && git reset --hard origin/{UPSTREAM_BRANCH} -q",
+            f"git fetch origin {UPSTREAM_BRANCH} -q \
+                     && git reset --hard FETCH_HEAD -q",
         ],
         shell=True,
         check=False,

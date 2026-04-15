@@ -265,6 +265,17 @@ transmission = """<b>Tg transmission</b>: -hl -ut -bt
 thumbnail_layout = """Thumbnail Layout: -tl
 /cmd link -tl 3x3 (widthxheight) 3 photos in row and 3 photos in column"""
 
+video_tools = """<b>Video Tools</b>: -vt
+/cmd -vt [options]
+
+Must support:
+- <b>Merge Mode</b>: -vt -m (requires -m, multi-file in same folder)
+- <b>Trim Video</b>: -vt -ss 00:00:10 -to 00:01:00
+- <b>Audio Extraction</b>: -vt (extracts audio if no trim options)
+- <b>Auto Audio Split</b>: -as OR -audiosplit (split multi-audio tracks)
+
+Note: If multi-mode (-m) is disabled, only the first video is processed for -vt."""
+
 leech_as = """<b>Leech as</b>: -doc -med
 /cmd link -doc (Leech as document)
 /cmd link -med (Leech as media)"""
@@ -305,6 +316,7 @@ YT_HELP_DICT = {
     "Thumb-Layout": thumbnail_layout,
     "Leech-Type": leech_as,
     "FFmpeg-Cmds": ffmpeg_cmds,
+    "Video-Tools": video_tools,
 }
 
 MIRROR_HELP_DICT = {
@@ -335,6 +347,7 @@ MIRROR_HELP_DICT = {
     "Thumb-Layout": thumbnail_layout,
     "Leech-Type": leech_as,
     "FFmpeg-Cmds": ffmpeg_cmds,
+    "Video-Tools": video_tools,
 }
 
 CLONE_HELP_DICT = {
