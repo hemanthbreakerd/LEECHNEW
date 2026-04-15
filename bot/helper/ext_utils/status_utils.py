@@ -29,6 +29,8 @@ class MirrorStatus:
     STATUS_METADATA = "Metadata"
     STATUS_WATERMARK = "Watermark"
     STATUS_ETHUMB = "Embed Thumb"
+    STATUS_VTOOLS = "VideoTool"
+    STATUS_ASPLIT = "AudioSplit"
     STATUS_YT = "YouTube"
 
 
@@ -46,6 +48,8 @@ STATUSES = {
     "SP": MirrorStatus.STATUS_SPLIT,
     "SV": MirrorStatus.STATUS_SAMVID,
     "FF": MirrorStatus.STATUS_FFMPEG,
+    "VT": MirrorStatus.STATUS_VTOOLS,
+    "AS": MirrorStatus.STATUS_ASPLIT,
     "PA": MirrorStatus.STATUS_PAUSED,
     "CK": MirrorStatus.STATUS_CHECK,
 }

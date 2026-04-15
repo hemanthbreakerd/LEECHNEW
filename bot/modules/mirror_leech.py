@@ -98,7 +98,11 @@ class Mirror(TaskListener):
             "-e": False,
             "-z": False,
             "-sv": False,
-            "-ss": False,
+            "-vt": False,
+            "-as": False,
+            "-audiosplit": False,
+            "-to": "",
+            "-ss": "",
             "-f": False,
             "-fd": False,
             "-fu": False,
@@ -141,6 +145,9 @@ class Mirror(TaskListener):
         self.split_size = args["-sp"]
         self.sample_video = args["-sv"]
         self.screen_shots = args["-ss"]
+        self.vtools = args["-vt"]
+        self.audio_split = args["-as"] or args["-audiosplit"]
+        self.trim_to = args["-to"]
         self.force_run = args["-f"]
         self.force_download = args["-fd"]
         self.force_upload = args["-fu"]
