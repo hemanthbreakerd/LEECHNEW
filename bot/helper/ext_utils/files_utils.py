@@ -7,7 +7,6 @@ from re import search as re_search
 from re import split as natsplit
 from re import split as re_split
 
-from aiofiles import open as aiopen
 from aiofiles.os import (
     listdir,
     remove,
@@ -23,7 +22,6 @@ from aiofiles.os import (
 from aiofiles.os import (
     readlink as aioreadlink,
 )
-from aioshutil import move
 from aioshutil import rmtree as aiormtree
 from magic import Magic
 
@@ -127,8 +125,6 @@ def natural_sort_key(s):
         int(text) if text.isdigit() else text.lower()
         for text in natsplit(r"(\d+)", s)
     ]
-
-
 
 
 async def clean_target(path: str):
