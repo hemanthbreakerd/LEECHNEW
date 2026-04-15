@@ -118,7 +118,10 @@ UPSTREAM_BRANCH = (
 if UPSTREAM_REPO:
     if not path.exists(".git"):
         srun(["git", "init", "-q"], check=False)
-        srun(["git", "config", "--global", "user.email", "e.anastayyar@gmail.com"], check=False)
+        srun(
+            ["git", "config", "--global", "user.email", "e.anastayyar@gmail.com"],
+            check=False,
+        )
         srun(["git", "config", "--global", "user.name", "mltb"], check=False)
         srun(["git", "remote", "add", "origin", UPSTREAM_REPO], check=False)
 

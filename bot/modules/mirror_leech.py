@@ -45,7 +45,6 @@ from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.telegram_helper.message_utils import (
     auto_delete_message,
     delete_links,
-    edit_message,
     get_tg_link_message,
     send_message,
 )
@@ -546,3 +545,4 @@ async def vt_callback(client, query):
         await leech(client, reply_to)
     else:
         await mirror(client, reply_to)
+    return None
