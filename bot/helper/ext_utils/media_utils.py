@@ -1,4 +1,6 @@
 import contextlib
+import json
+import re
 from asyncio import create_subprocess_exec, gather, wait_for
 from asyncio.subprocess import PIPE
 from os import path as ospath
@@ -6,6 +8,7 @@ from re import escape
 from re import search as re_search
 from time import time
 
+from aiofiles import open as aiopen
 from aiofiles.os import makedirs, remove
 from aiofiles.os import path as aiopath
 from aioshutil import rmtree
@@ -797,3 +800,246 @@ class FFMpeg:
             i += 1
 
         return True
+
+    async def merge_videos(self, dir_path, video_files, output_path):
+        self.clear()
+        dur_tasks = [get_media_info(ospath.join(dir_path, f)) for f in video_files]
+        durations = await gather(*dur_tasks)
+        self._total_time = sum(d[0] for d in durations)
+        list_file = ospath.join(dir_path, "concat.txt")
+        async with aiopen(list_file, "w") as f:
+            for file in video_files:
+                escaped_name = file.replace("'", "'\\''")
+                await f.write(f"file '{escaped_name}'\n")
+        cmd = [
+            "taskset",
+            "-c",
+            f"{cores}",
+            "xtra",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-progress",
+            "pipe:1",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            list_file,
+            "-c",
+            "copy",
+            "-threads",
+            f"{threads}",
+            output_path,
+        ]
+        if self._listener.is_cancelled:
+            return False
+        self._listener.subproc = await create_subprocess_exec(
+            *cmd,
+            stdout=PIPE,
+            stderr=PIPE,
+        )
+        await self._ffmpeg_progress()
+        _, stderr = await self._listener.subproc.communicate()
+        code = self._listener.subproc.returncode
+        if await aiopath.exists(list_file):
+            await remove(list_file)
+        if self._listener.is_cancelled:
+            return False
+        if code == 0:
+            return output_path
+        try:
+            stderr = stderr.decode().strip()
+        except Exception:
+            stderr = "Unable to decode the error!"
+        LOGGER.error(f"FFmpeg Merge Failed: {stderr}")
+        return False
+
+    async def trim_video(self, input_path, ss, to):
+        self.clear()
+        self._total_time = (await get_media_info(input_path))[0]
+        dir, name = ospath.split(input_path)
+        output = ospath.join(dir, f"TRIMMED.{name}")
+        cmd = [
+            "taskset",
+            "-c",
+            f"{cores}",
+            "xtra",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-progress",
+            "pipe:1",
+            "-ss",
+            str(ss),
+            "-to",
+            str(to),
+            "-i",
+            input_path,
+            "-c",
+            "copy",
+            "-map",
+            "0",
+            "-threads",
+            f"{threads}",
+            output,
+        ]
+        if self._listener.is_cancelled:
+            return False
+        self._listener.subproc = await create_subprocess_exec(
+            *cmd,
+            stdout=PIPE,
+            stderr=PIPE,
+        )
+        await self._ffmpeg_progress()
+        _, stderr = await self._listener.subproc.communicate()
+        code = self._listener.subproc.returncode
+        if self._listener.is_cancelled:
+            return False
+        if code == 0:
+            return output
+        try:
+            stderr = stderr.decode().strip()
+        except Exception:
+            stderr = "Unable to decode the error!"
+        LOGGER.error(f"FFmpeg Trim Failed: {stderr}")
+        if await aiopath.exists(output):
+            await remove(output)
+        return False
+
+    async def extract_audio(self, input_path):
+        self.clear()
+        self._total_time = (await get_media_info(input_path))[0]
+        dir, name = ospath.split(input_path)
+        base_name, _ = ospath.splitext(name)
+        output = ospath.join(dir, f"{base_name}.m4a")
+        cmd = [
+            "taskset",
+            "-c",
+            f"{cores}",
+            "xtra",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-progress",
+            "pipe:1",
+            "-i",
+            input_path,
+            "-vn",
+            "-c:a",
+            "copy",
+            "-threads",
+            f"{threads}",
+            output,
+        ]
+        if self._listener.is_cancelled:
+            return False
+        self._listener.subproc = await create_subprocess_exec(
+            *cmd,
+            stdout=PIPE,
+            stderr=PIPE,
+        )
+        await self._ffmpeg_progress()
+        _, stderr = await self._listener.subproc.communicate()
+        code = self._listener.subproc.returncode
+        if self._listener.is_cancelled:
+            return False
+        if code == 0:
+            return output
+        try:
+            stderr = stderr.decode().strip()
+        except Exception:
+            stderr = "Unable to decode the error!"
+        LOGGER.error(f"FFmpeg Audio Extraction Failed: {stderr}")
+        if await aiopath.exists(output):
+            await remove(output)
+        return False
+
+    async def audio_split(self, input_path):
+        self.clear()
+        self._total_time = (await get_media_info(input_path))[0]
+        cmd = [
+            "ffprobe",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-print_format",
+            "json",
+            "-show_streams",
+            input_path,
+        ]
+        res = await cmd_exec(cmd)
+        if res[2] != 0:
+            return False
+
+        try:
+            streams = json.loads(res[0])["streams"]
+        except Exception:
+            return False
+        audio_streams = [s for s in streams if s.get("codec_type") == "audio"]
+        if len(audio_streams) <= 1:
+            return False
+        dir, name = ospath.split(input_path)
+        base_name, ext = ospath.splitext(name)
+        outputs = []
+        for i, stream in enumerate(audio_streams):
+            lang = stream.get("tags", {}).get("language", f"track_{i}")
+
+            # Remove junk tags like [TG], @channel, website URLs, but keep quality (1080p, etc)
+            clean_name = re.sub(r"@\w+|www\.\S+|https?://\S+", "", base_name)
+            quality_keywords = "hevc|x264|x265|hdr|10bit|dual|audio|multi"
+            clean_name = re.sub(
+                rf"[\[\(](?![^\]\)]*(\d|{quality_keywords}))[^\]\)]*[\]\)]",
+                "",
+                clean_name,
+                flags=re.IGNORECASE,
+            )
+            clean_name = re.sub(r"\s+", " ", clean_name).strip()
+            if not clean_name:
+                clean_name = base_name
+            output = ospath.join(dir, f"{clean_name}_{lang}{ext}")
+            cmd = [
+                "taskset",
+                "-c",
+                f"{cores}",
+                "xtra",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-progress",
+                "pipe:1",
+                "-i",
+                input_path,
+                "-map",
+                "0:v:0",
+                "-map",
+                f"0:a:{i}",
+                "-c",
+                "copy",
+                "-map_metadata",
+                "-1",
+                "-threads",
+                f"{threads}",
+                output,
+            ]
+            if self._listener.is_cancelled:
+                return False
+            self._listener.subproc = await create_subprocess_exec(
+                *cmd,
+                stdout=PIPE,
+                stderr=PIPE,
+            )
+            await self._ffmpeg_progress()
+            _, stderr = await self._listener.subproc.communicate()
+            if self._listener.subproc.returncode == 0:
+                outputs.append(output)
+            else:
+                try:
+                    stderr = stderr.decode().strip()
+                except Exception:
+                    stderr = "Unable to decode the error!"
+                LOGGER.error(f"FFmpeg Audio Split Failed for stream {i}: {stderr}")
+                if await aiopath.exists(output):
+                    await remove(output)
+        return outputs

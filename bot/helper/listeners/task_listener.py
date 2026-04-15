@@ -33,7 +33,6 @@ from bot.helper.ext_utils.files_utils import (
     join_files,
     remove_excluded_files,
     remove_non_included_files,
-    sequential_merge,
 )
 from bot.helper.ext_utils.links_utils import is_gdrive_id
 from bot.helper.ext_utils.status_utils import get_readable_file_size
@@ -217,8 +216,18 @@ class TaskListener(TaskConfig):
         if self.join and not self.is_file:
             await join_files(up_path)
 
-        if self.user_dict.get("is_merge_enabled", False) and not self.is_file:
-            await sequential_merge(up_dir, self)
+        if (
+            self.vtools
+            or self.audio_split
+            or self.user_dict.get("is_merge_enabled", False)
+            or self.user_dict.get("is_asplit_enabled", False)
+        ):
+            up_path = await self.proceed_video_tools(up_path, gid)
+            if self.is_cancelled:
+                return
+            self.is_file = await aiopath.isfile(up_path)
+            self.name = up_path.replace(f"{up_dir}/", "").split("/", 1)[0]
+            self.size = await get_path_size(up_dir)
 
         if self.extract and not self.is_nzb:
             up_path = await self.proceed_extract(up_path, gid)
