@@ -1,4 +1,6 @@
 import contextlib
+import json
+import re
 from asyncio import create_subprocess_exec, gather, wait_for
 from asyncio.subprocess import PIPE
 from os import path as ospath
@@ -970,7 +972,6 @@ class FFMpeg:
         res = await cmd_exec(cmd)
         if res[2] != 0:
             return False
-        import json
 
         try:
             streams = json.loads(res[0])["streams"]
@@ -984,14 +985,19 @@ class FFMpeg:
         outputs = []
         for i, stream in enumerate(audio_streams):
             lang = stream.get("tags", {}).get("language", f"track_{i}")
-            import re
 
+            # Remove junk tags like [TG], @channel, website URLs, but keep quality (1080p, etc)
+            clean_name = re.sub(r"@\w+|www\.\S+|https?://\S+", "", base_name)
+            quality_keywords = "hevc|x264|x265|hdr|10bit|dual|audio|multi"
             clean_name = re.sub(
-                r"\(.*?\)|\[.*?\]",
+                rf"[\[\(](?![^\]\)]*(\d|{quality_keywords}))[^\]\)]*[\]\)]",
                 "",
-                base_name,
-            ).strip()
-            clean_name = re.sub(r"\s+", " ", clean_name)
+                clean_name,
+                flags=re.IGNORECASE,
+            )
+            clean_name = re.sub(r"\s+", " ", clean_name).strip()
+            if not clean_name:
+                clean_name = base_name
             output = ospath.join(dir, f"{clean_name}_{lang}{ext}")
             cmd = [
                 "taskset",

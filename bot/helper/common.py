@@ -41,10 +41,10 @@ from .ext_utils.files_utils import (
     SevenZ,
     get_base_name,
     get_path_size,
+    natural_sort_key,
     is_archive,
     is_archive_split,
     is_first_archive_split,
-    natural_sort_key,
     split_file,
 )
 from .ext_utils.links_utils import (
@@ -1560,9 +1560,8 @@ class TaskConfig:
 
     async def proceed_video_tools(self, dl_path, gid):
         ffmpeg = FFMpeg(self)
-        if self.vtools or (
-            self.user_dict.get("is_merge_enabled", False) and not self.is_file
-        ):
+        is_merge = self.user_dict.get("is_merge_enabled", False) and not self.is_file
+        if self.vtools or is_merge:
             video_files = []
             if self.is_file:
                 if dl_path.lower().endswith(
@@ -1584,6 +1583,8 @@ class TaskConfig:
                 )
 
                 if is_multi and not is_trim and len(video_files) > 1:
+                    if self.name and not self.vtools:
+                        LOGGER.warning("DO NOT use -n in merge mode")
                     async with task_dict_lock:
                         task_dict[self.mid] = FFmpegStatus(
                             self,
@@ -1649,23 +1650,13 @@ class TaskConfig:
                 for root, _, files in await sync_to_async(walk, dl_path):
                     for file in files:
                         if file.lower().endswith(
-                            (
-                                ".mp4",
-                                ".mkv",
-                                ".mov",
-                                ".avi",
-                                ".wmv",
-                                ".flv",
-                                ".webm",
-                            ),
+                            (".mp4", ".mkv", ".mov", ".avi", ".wmv", ".flv", ".webm"),
                         ):
                             video_files.append(ospath.join(root, file))
 
             if video_files:
                 async with task_dict_lock:
-                    task_dict[self.mid] = FFmpegStatus(
-                        self, ffmpeg, gid, "AudioSplit"
-                    )
+                    task_dict[self.mid] = FFmpegStatus(self, ffmpeg, gid, "AudioSplit")
                 self.progress = False
                 async with cpu_eater_lock:
                     self.progress = True
